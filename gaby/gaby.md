@@ -1,7 +1,7 @@
 # Gaby
 ## "eval as a brushstroke" (SVG Code Art for Gaby)
 
-1. Check the code before
+1. [Check the code before](https://github.com/jotafeldmann/art/blob/main/gaby/gaby.svg?short_path=7f64524)
 2. [Download it](https://raw.githubusercontent.com/jotafeldmann/art/refs/heads/main/gaby/gaby.svg)
 3. Open in your browser locally
 
