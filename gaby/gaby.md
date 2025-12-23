@@ -61,30 +61,7 @@ The animation does not simply show typing; it shows convergence.
 5. It calls "eval(program)", executing the same code the viewer just watched being written.
 6. That evaluated code animates the last line's output until it resolves to:
 
-"console.log("Happy Birthday Gaby");"
-
-## Testing the limits (ideas to push the piece further)
-
-### Make the code fight back
-- Add self modifying behavior: the printed code rewrites parts of itself before the final "eval".
-- Print a decoy program, then "patch" it live (like a hotfix) before execution.
-
-### Turn danger into a dial
-- Generate the program from fragments (tokens), then assemble it on screen.
-- Gradually "unlock" forbidden constructs: first safe functions, then dynamic evaluation, then reflection.
-
-### Expand the performative editor
-- Add a fake lint error that resolves itself.
-- Add a fake stack trace, then "fix" it and rerun.
-- Insert comments that read like a manifesto, revealed at the same time as the code.
-
-### Explore meaning through constraints
-- Force the final message to be produced only through transformations (no direct string literal).
-- Encode the greeting and decode it on screen (base64, XOR, rune-like glyph mapping).
-
-### Make the viewer complicit
-- Use time-based entropy (e.g., seed randomness from frame time) so each viewing is unique.
-- Let the cursor, scramble speed, or message resolve rate vary by environment, device as collaborator.
+> console.log("Happy Birthday Gaby");
 
 ## Objective
 
