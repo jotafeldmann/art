@@ -48,4 +48,4 @@ Risk is part of the medium, but responsibility is part of the practice.
 This is primarily a personal archive, but conversation is welcome. If you have an idea, a critique, or a reference that bends the same boundary, open an issue.
 
 ## Author
-[Jorge de Melo Feldmann](https://github.com/jotafeldmann/art)
+[Jorge Feldmann](https://github.com/jotafeldmann/art)
