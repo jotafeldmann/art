@@ -2,7 +2,7 @@
 ## "eval as a brushstroke" (SVG Code Art for Gaby)
 
 1. Check the code before
-2. [Open in your browser](./gaby.js)
+2. [Open in your browser](./gaby.svg)
 
 **Inspiration**  
 How can you surprise someone who is really tied to tech?  
