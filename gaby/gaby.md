@@ -2,7 +2,8 @@
 ## "eval as a brushstroke" (SVG Code Art for Gaby)
 
 1. Check the code before
-2. [Open in your browser](./gaby.svg)
+2. [Download it](https://raw.githubusercontent.com/jotafeldmann/art/refs/heads/main/gaby/gaby.svg)
+3. Open in your browser locally
 
 **Inspiration**  
 How can you surprise someone who is really tied to tech?  
