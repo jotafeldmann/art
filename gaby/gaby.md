@@ -3,13 +3,13 @@
 
 1. Check the code before
 2. Download the svg
-3. Open the svg direclty on your local browser
+3. Open the svg directly on your local browser
 
 **Inspiration**  
 How can you surprise someone who is really tied to tech?  
 Not with a generic "happy birthday" card, but with something that speaks their native language: an editor, a cursor, a program being authored in real time. A greeting that is not shown, it is built.
 
-**Author:** Jorge de Melo Feldmann  
+**Author:** Jorge Feldmann  
 **Date:** December 23, 2025  
 
 ## Overview
