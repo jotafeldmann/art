@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Renato</title>
+  <style>
+    :root {
+      --bg1: #21113a;
+      --bg2: #4c1d95;
+      --bg3: #ec4899;
+      --ground: #5b3b24;
+      --dirt: #7a5230;
+      --grass: #4ade80;
+      --platform: #8b5cf6;
+      --gift: #f59e0b;
+      --ui: rgba(9, 6, 20, 0.75);
+      --white: #f8fafc;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: monospace;
+      background: linear-gradient(180deg, var(--bg3), var(--bg2) 35%, var(--bg1));
+      color: var(--white);
+      overflow: hidden;
+    }
+
+    #gameWrap {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    canvas {
+      width: min(100vw, 1200px);
+      height: min(56.25vw, 675px);
+      max-height: 100vh;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      background: transparent;
+      display: block;
+      box-shadow: 0 0 0 4px rgba(255,255,255,0.08);
+    }
+
+    .ui {
+      position: absolute;
+      left: 16px;
+      top: 16px;
+      background: var(--ui);
+      padding: 12px 14px;
+      border-radius: 12px;
+      line-height: 1.5;
+      backdrop-filter: blur(6px);
+      font-size: 14px;
+    }
+
+    .msg {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(4, 2, 10, 0.75);
+      padding: 20px;
+    }
+
+    .msg.show { display: flex; }
+
+    .card {
+      width: min(92vw, 620px);
+      background: rgba(20, 13, 39, 0.95);
+      border: 2px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .card h1 {
+      margin: 0 0 12px;
+      font-size: clamp(24px, 5vw, 40px);
+    }
+
+    .card p { font-size: 16px; }
+
+    .btn {
+      margin-top: 14px;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font: inherit;
+      cursor: pointer;
+      background: #f59e0b;
+      color: #1f1303;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameWrap">
+    <canvas id="game" width="960" height="540"></canvas>
+    <div class="ui" id="hud"></div>
+    <div class="msg" id="overlay">
+      <div class="card">
+        <h1 id="overlayTitle">Mini Mario do Aniversário</h1>
+        <p id="overlayText"></p>
+        <button class="btn" id="restartBtn">Jogar de novo</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const hud = document.getElementById('hud');
+    const overlay = document.getElementById('overlay');
+    const overlayTitle = document.getElementById('overlayTitle');
+    const overlayText = document.getElementById('overlayText');
+    const restartBtn = document.getElementById('restartBtn');
+
+    ctx.imageSmoothingEnabled = false;
+
+    const WORLD = {
+      width: 2600,
+      height: 540,
+      gravity: 0.55,
+      groundY: 468,
+      tile: 24
+    };
+
+    const keys = {};
+    let cameraX = 0;
+    let win = false;
+    let gameOver = false;
+    let collected = 0;
+    let totalCakes = 0;
+
+    const player = {
+      x: 80,
+      y: 120,
+      w: 36,
+      h: 52,
+      vx: 0,
+      vy: 0,
+      speed: 0.65,
+      maxSpeed: 5.4,
+      jump: 11.8,
+      onGround: false,
+      facing: 1,
+      animTimer: 0,
+      frame: 0,
+      beardBounce: 0,
+      hairBob: 0
+    };
+
+    const platforms = [
+      {x: 0, y: 468, w: 460, h: 72, type: 'ground'},
+      {x: 520, y: 468, w: 330, h: 72, type: 'ground'},
+      {x: 940, y: 468, w: 250, h: 72, type: 'ground'},
+      {x: 1290, y: 468, w: 380, h: 72, type: 'ground'},
+      {x: 1760, y: 468, w: 310, h: 72, type: 'ground'},
+      {x: 2150, y: 468, w: 450, h: 72, type: 'ground'},
+
+      {x: 250, y: 390, w: 96, h: 18, type: 'plat'},
+      {x: 390, y: 330, w: 96, h: 18, type: 'plat'},
+      {x: 650, y: 360, w: 120, h: 18, type: 'plat'},
+      {x: 820, y: 300, w: 96, h: 18, type: 'plat'},
+      {x: 1090, y: 380, w: 96, h: 18, type: 'plat'},
+      {x: 1430, y: 340, w: 120, h: 18, type: 'plat'},
+      {x: 1590, y: 280, w: 96, h: 18, type: 'plat'},
+      {x: 1830, y: 360, w: 96, h: 18, type: 'plat'},
+      {x: 1980, y: 310, w: 96, h: 18, type: 'plat'},
+      {x: 2280, y: 360, w: 120, h: 18, type: 'plat'}
+    ];
+
+    const cakes = [
+      {x: 290, y: 355, r: 11, taken: false},
+      {x: 430, y: 295, r: 11, taken: false},
+      {x: 710, y: 325, r: 11, taken: false},
+      {x: 850, y: 265, r: 11, taken: false},
+      {x: 1130, y: 345, r: 11, taken: false},
+      {x: 1480, y: 305, r: 11, taken: false},
+      {x: 1630, y: 245, r: 11, taken: false},
+      {x: 1870, y: 325, r: 11, taken: false},
+      {x: 2020, y: 275, r: 11, taken: false},
+      {x: 2335, y: 325, r: 11, taken: false}
+    ];
+    totalCakes = cakes.length;
+
+    const enemies = [
+      {x: 610, y: 440, w: 28, h: 28, dir: 1, minX: 555, maxX: 780, speed: 1.1},
+      {x: 1010, y: 440, w: 28, h: 28, dir: -1, minX: 965, maxX: 1150, speed: 1.0},
+      {x: 1540, y: 440, w: 28, h: 28, dir: 1, minX: 1320, maxX: 1650, speed: 1.2},
+      {x: 2200, y: 440, w: 28, h: 28, dir: -1, minX: 2170, maxX: 2500, speed: 1.4}
+    ];
+
+    const gift = {x: 2490, y: 420, w: 34, h: 48};
+
+    function resetGame() {
+      player.x = 80;
+      player.y = 120;
+      player.vx = 0;
+      player.vy = 0;
+      player.onGround = false;
+      player.facing = 1;
+      collected = 0;
+      win = false;
+      gameOver = false;
+      cameraX = 0;
+      cakes.forEach(c => c.taken = false);
+      enemies[0].x = 610;
+      enemies[1].x = 1010;
+      enemies[2].x = 1540;
+      enemies[3].x = 2200;
+      overlay.classList.remove('show');
+    }
+
+    function showMessage(title, text) {
+      overlayTitle.textContent = title;
+      overlayText.innerHTML = text;
+      overlay.classList.add('show');
+    }
+
+    function rectsOverlap(a, b) {
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+
+    function updatePlayer() {
+      if (gameOver || win) return;
+
+      const left = keys['arrowleft'] || keys['a'];
+      const right = keys['arrowright'] || keys['d'];
+      const jump = keys['arrowup'] || keys['w'] || keys[' '];
+
+      if (left) {
+        player.vx -= player.speed;
+        player.facing = -1;
+      }
+      if (right) {
+        player.vx += player.speed;
+        player.facing = 1;
+      }
+      if (!left && !right) {
+        player.vx *= 0.82;
+        if (Math.abs(player.vx) < 0.08) player.vx = 0;
+      }
+
+      player.vx = Math.max(-player.maxSpeed, Math.min(player.maxSpeed, player.vx));
+
+      if (jump && player.onGround) {
+        player.vy = -player.jump;
+        player.onGround = false;
+      }
+
+      player.vy += WORLD.gravity;
+      player.x += player.vx;
+      resolveHorizontal();
+      player.y += player.vy;
+      resolveVertical();
+
+      if (player.y > WORLD.height + 120) {
+        gameOver = true;
+        showMessage('Ops!', 'Ele caiu no vazio.<br><br>Aperta o botão e tenta de novo.');
+      }
+
+      player.animTimer += Math.abs(player.vx) * 0.16 + 0.08;
+      player.frame = Math.floor(player.animTimer) % 4;
+      player.beardBounce = Math.sin(player.animTimer * 0.8) * 1.5;
+      player.hairBob = Math.sin(player.animTimer * 0.4) * 0.7;
+    }
+
+    function resolveHorizontal() {
+      for (const p of platforms) {
+        if (rectsOverlap(player, p)) {
+          if (player.vx > 0) player.x = p.x - player.w;
+          if (player.vx < 0) player.x = p.x + p.w;
+          player.vx = 0;
+        }
+      }
+    }
+
+    function resolveVertical() {
+      player.onGround = false;
+      for (const p of platforms) {
+        if (rectsOverlap(player, p)) {
+          if (player.vy > 0) {
+            player.y = p.y - player.h;
+            player.vy = 0;
+            player.onGround = true;
+          } else if (player.vy < 0) {
+            player.y = p.y + p.h;
+            player.vy = 0;
+          }
+        }
+      }
+    }
+
+    function updateEnemies() {
+      if (gameOver || win) return;
+
+      for (const e of enemies) {
+        e.x += e.dir * e.speed;
+        if (e.x <= e.minX || e.x + e.w >= e.maxX) e.dir *= -1;
+
+        if (rectsOverlap(player, e)) {
+          const stomp = player.vy > 1 && player.y + player.h - e.y < 18;
+          if (stomp) {
+            player.vy = -8;
+            e.x = e.minX;
+            e.dir *= -1;
+          } else {
+            gameOver = true;
+            showMessage('Ai!', 'Um monstrinho te pegou.<br><br>Tenta mais uma vez.');
+          }
+        }
+      }
+    }
+
+    function updateCollectibles() {
+      for (const c of cakes) {
+        if (c.taken) continue;
+        const hit = {
+          x: c.x - c.r,
+          y: c.y - c.r,
+          w: c.r * 2,
+          h: c.r * 2
+        };
+        if (rectsOverlap(player, hit)) {
+          c.taken = true;
+          collected++;
+        }
+      }
+
+      if (rectsOverlap(player, gift)) {
+        win = true;
+        const bonus = collected === totalCakes
+          ? 'E ainda pegou todos os bolos 🎂<br><br>'
+          : `Você pegou ${collected}/${totalCakes} bolos no caminho.<br><br>`;
+        showMessage('Parabéns!', `${bonus}<strong>Feliz aniversário!</strong>`);
+      }
+    }
+
+    function updateCamera() {
+      const target = player.x - canvas.width * 0.35;
+      cameraX += (target - cameraX) * 0.12;
+      cameraX = Math.max(0, Math.min(WORLD.width - canvas.width, cameraX));
+    }
+
+    function drawSky() {
+      const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      g.addColorStop(0, '#ec4899');
+      g.addColorStop(0.35, '#4c1d95');
+      g.addColorStop(1, '#1e1033');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (let i = 0; i < 8; i++) {
+        const x = ((i * 180) - cameraX * 0.2) % (canvas.width + 300) - 150;
+        const y = 60 + (i % 3) * 45;
+        ctx.fillStyle = 'rgba(255,50,120,0.12)';
+        ctx.fillRect(x, y, 140, 10);
+        ctx.fillStyle = 'rgba(96,165,250,0.10)';
+        ctx.fillRect(x + 50, y + 16, 120, 8);
+      }
+    }
+
+    function drawPlatforms() {
+      for (const p of platforms) {
+        const x = p.x - cameraX;
+        if (x + p.w < -10 || x > canvas.width + 10) continue;
+
+        if (p.type === 'ground') {
+          ctx.fillStyle = '#4ade80';
+          ctx.fillRect(x, p.y, p.w, 8);
+          ctx.fillStyle = '#7a5230';
+          ctx.fillRect(x, p.y + 8, p.w, p.h - 8);
+          ctx.fillStyle = '#5b3b24';
+          for (let xx = 0; xx < p.w; xx += 24) {
+            ctx.fillRect(x + xx, p.y + 18, 12, 8);
+            ctx.fillRect(x + xx + 6, p.y + 36, 10, 8);
+          }
+        } else {
+          ctx.fillStyle = '#8b5cf6';
+          ctx.fillRect(x, p.y, p.w, p.h);
+          ctx.fillStyle = '#c4b5fd';
+          for (let xx = 0; xx < p.w; xx += 18) {
+            ctx.fillRect(x + xx + 2, p.y + 2, 8, 4);
+          }
+        }
+      }
+    }
+
+    function drawCake(c) {
+      const x = c.x - cameraX;
+      const y = c.y;
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(x - 10, y - 4, 20, 12);
+      ctx.fillStyle = '#fb7185';
+      ctx.fillRect(x - 10, y - 8, 20, 5);
+      ctx.fillStyle = '#fde68a';
+      ctx.fillRect(x - 9, y + 1, 18, 5);
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(x - 1, y - 13, 2, 5);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(x - 2, y - 15, 4, 3);
+    }
+
+    function drawEnemies() {
+      for (const e of enemies) {
+        const x = e.x - cameraX;
+        const y = e.y;
+        ctx.fillStyle = '#2b1b4f';
+        ctx.fillRect(x, y + 8, e.w, e.h - 8);
+        ctx.fillStyle = '#f43f5e';
+        ctx.fillRect(x + 4, y + 4, e.w - 8, 12);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(x + 7, y + 8, 4, 4);
+        ctx.fillRect(x + e.w - 11, y + 8, 4, 4);
+        ctx.fillStyle = '#111';
+        ctx.fillRect(x + 8, y + 9, 2, 2);
+        ctx.fillRect(x + e.w - 10, y + 9, 2, 2);
+      }
+    }
+
+    function drawGift() {
+      const x = gift.x - cameraX;
+      const y = gift.y;
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(x, y, gift.w, gift.h);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(x + 14, y, 6, gift.h);
+      ctx.fillRect(x, y + 20, gift.w, 6);
+      ctx.fillStyle = '#fde68a';
+      ctx.fillRect(x + 7, y - 8, 8, 8);
+      ctx.fillRect(x + 19, y - 8, 8, 8);
+    }
+
+    function drawPlayer() {
+      const x = Math.round(player.x - cameraX);
+      const y = Math.round(player.y);
+      const walking = Math.abs(player.vx) > 0.3;
+      const airborne = !player.onGround;
+      const leg = airborne ? 1 : (walking ? (player.frame % 2 === 0 ? 3 : -3) : 0);
+      const arm = airborne ? -2 : (walking ? (player.frame % 2 === 0 ? -2 : 2) : 0);
+
+      ctx.save();
+      if (player.facing === -1) {
+        ctx.translate(x + player.w / 2, 0);
+        ctx.scale(-1, 1);
+        ctx.translate(-(x + player.w / 2), 0);
+      }
+
+      const skin = '#f2b07e';
+      const hair = '#16162b';
+      const beard = '#4b5563';
+      const beardDark = '#2f3546';
+      const jacket = '#131527';
+      const floral1 = '#f9a8d4';
+      const floral2 = '#f59e0b';
+      const shirt = '#0b1020';
+      const glasses = '#2563eb';
+      const silver = '#d1d5db';
+
+      ctx.fillStyle = jacket;
+      ctx.fillRect(x + 7, y + 26, 22, 18);
+      ctx.fillRect(x + 8, y + 44, 8, 8);
+      ctx.fillRect(x + 20, y + 44, 8, 8);
+
+      ctx.fillStyle = shirt;
+      ctx.fillRect(x + 13, y + 29, 10, 18);
+
+      ctx.fillStyle = floral1;
+      ctx.fillRect(x + 8, y + 30, 2, 2);
+      ctx.fillRect(x + 25, y + 34, 2, 2);
+      ctx.fillStyle = floral2;
+      ctx.fillRect(x + 10, y + 33, 2, 2);
+      ctx.fillRect(x + 23, y + 31, 2, 2);
+
+      ctx.fillStyle = skin;
+      ctx.fillRect(x + 13, y + 7, 12, 14);
+      ctx.fillRect(x + 16, y + 21, 6, 6);
+
+      ctx.fillStyle = hair;
+      ctx.fillRect(x + 12, y + 4 + player.hairBob, 12, 5);
+      ctx.fillRect(x + 10, y + 6 + player.hairBob, 5, 6);
+      ctx.fillRect(x + 22, y + 8, 3, 5);
+      ctx.fillRect(x + 8, y + 2 + player.hairBob, 7, 3);
+
+      ctx.fillStyle = glasses;
+      ctx.fillRect(x + 11, y + 12, 6, 4);
+      ctx.fillRect(x + 19, y + 12, 6, 4);
+      ctx.fillRect(x + 17, y + 13, 2, 1);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x + 11, y + 13, 2, 1);
+      ctx.fillRect(x + 19, y + 13, 2, 1);
+
+      ctx.fillStyle = beard;
+      ctx.fillRect(x + 11, y + 16, 14, 11 + player.beardBounce);
+      ctx.fillStyle = beardDark;
+      ctx.fillRect(x + 13, y + 18, 10, 10 + player.beardBounce);
+
+      ctx.fillStyle = skin;
+      ctx.fillRect(x + 8, y + 29 + arm, 4, 12);
+      ctx.fillRect(x + 24, y + 29 - arm, 4, 12);
+
+      ctx.fillStyle = jacket;
+      ctx.fillRect(x + 7, y + 27 + arm, 5, 10);
+      ctx.fillRect(x + 24, y + 27 - arm, 5, 10);
+
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(x + 11, y + 44 + leg, 5, 8);
+      ctx.fillRect(x + 20, y + 44 - leg, 5, 8);
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(x + 10, y + 50 + leg, 7, 2);
+      ctx.fillRect(x + 19, y + 50 - leg, 7, 2);
+
+      ctx.fillStyle = silver;
+      ctx.fillRect(x + 17, y + 37, 2, 7);
+
+      ctx.restore();
+    }
+
+    function drawForeground() {
+      for (let i = 0; i < WORLD.width; i += 180) {
+        const x = i - cameraX * 1.15;
+        if (x < -120 || x > canvas.width + 120) continue;
+        ctx.fillStyle = 'rgba(10, 7, 18, 0.25)';
+        ctx.fillRect(x, 420, 70, 120);
+      }
+    }
+
+    function draw() {
+      drawSky();
+      drawPlatforms();
+      cakes.forEach(c => { if (!c.taken) drawCake(c); });
+      drawGift();
+      drawEnemies();
+      drawPlayer();
+      drawForeground();
+    }
+
+    function updateHud() {
+      hud.innerHTML = `
+        <strong>Controles:</strong> A/D ou ←/→ para andar, W/↑/Espaço para pular, R para reiniciar<br>
+        <strong>Bolos:</strong> ${collected}/${totalCakes}<br>
+        <strong>Objetivo:</strong> alcançar o presente 🎁<br><strong>Bônus:</strong> pegar todos os bolos pelo caminho
+      `;
+    }
+
+    function loop() {
+      updatePlayer();
+      updateEnemies();
+      updateCollectibles();
+      updateCamera();
+      updateHud();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      const key = e.key.toLowerCase();
+      keys[key] = true;
+      if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(key)) e.preventDefault();
+      if (key === 'r') resetGame();
+    });
+
+    window.addEventListener('keyup', (e) => {
+      keys[e.key.toLowerCase()] = false;
+    });
+
+    restartBtn.addEventListener('click', resetGame);
+
+    resetGame();
+    loop();
+  </script>
+</body>
+</html>
