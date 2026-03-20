@@ -10,6 +10,10 @@ This repository is a long-running attempt to study that contradiction, push on i
 
 It is also how I learn: by building, bending, testing, misusing, and sometimes provoking the medium just enough to see what it reveals.
 
+> I read Johan Huizinga for fun, and I keep returning to the same idea: play is not a side effect of culture, but one of its conditions. *Play is older than culture.* Culture itself *arises in the form of play.* Even ritual, which seems to belong to the most serious and sacred dimension of human life, can still be understood through that lens: *“Ritual is seriousness at its highest and holiest. Can it nevertheless be play?”* For me, yes. That question matters not only to art, but to code.
+
+**It is also a defense of coding for no market reason at all: no sprint, no stakeholder, no monetization plan, just exploration, curiosity, and sometimes love.**
+
 ## What this repository is
 
 A collection of coding artworks: small programs, interactive pieces, visual experiments, and "unsafe" ideas used on purpose. Some are readable, some are hostile, some are quiet. Many are designed to be experienced, not just inspected.
