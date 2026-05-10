@@ -1,0 +1,1300 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>B.I.R.A. Tactics Prompt</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, Arial, sans-serif; background: #020617; color: #e2e8f0; }
+    .app-tabs {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 18px 24px 0;
+      display: flex;
+      gap: 8px;
+    }
+    main { display: grid; grid-template-columns: 1fr 410px; gap: 24px; max-width: 1280px; margin: 0 auto; padding: 16px 24px 24px; }
+    main.settings-mode { grid-template-columns: 1fr 410px; max-width: 1280px; }
+    main.help-mode { grid-template-columns: 1fr; max-width: 980px; }
+    main.help-mode .side { display: none; }
+    .side-group { display: grid; gap: 16px; }
+    .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 18px; padding: 16px; }
+    .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .tab-btn { background: #1e293b; color: #cbd5e1; padding: 10px 12px; }
+    .tab-btn.active { background: #22d3ee; color: #020617; }
+    h1, h2, h3 { margin: 0 0 8px; }
+    p { margin: 0; color: #94a3b8; }
+    button { border: 0; border-radius: 12px; padding: 12px 14px; font-weight: 700; cursor: pointer; background: #22d3ee; color: #020617; }
+    button:disabled { background: #334155; color: #94a3b8; cursor: not-allowed; }
+    textarea, input, select {
+      width: 100%;
+      background: #020617;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 10px;
+      outline: none;
+    }
+    textarea { height: 110px; resize: vertical; }
+    textarea:focus, input:focus { border-color: #22d3ee; }
+    label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 5px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .field { margin-bottom: 10px; }
+    .board-wrap { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: 24px 1fr; gap: 4px; }
+    .corner-label { grid-column: 1; grid-row: 1; }
+    .col-labels { grid-column: 2; grid-row: 1; display: grid; align-items: center; text-align: center; font-size: 10px; color: #94a3b8; overflow: hidden; }
+    .row-labels { grid-column: 1; grid-row: 2; display: grid; align-items: center; text-align: right; padding-right: 4px; font-size: 10px; color: #94a3b8; overflow: hidden; }
+    .board {
+      grid-column: 2;
+      grid-row: 2;
+      position: relative;
+      aspect-ratio: 1;
+      overflow: hidden;
+      border-radius: 14px;
+      border: 1px solid #334155;
+      background-color: #1e293b;
+      touch-action: none;
+    }
+    .unit {
+      position: absolute;
+      min-width: 34px;
+      min-height: 20px;
+      padding: 2px 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      transform: translate(-50%, -50%);
+      border: 1px solid white;
+      transition: left 420ms ease, top 420ms ease, opacity 220ms ease;
+      z-index: 3;
+      user-select: none;
+    }
+    .setup-unit { cursor: grab; transition: none; }
+    .setup-unit.dragging { opacity: .65; cursor: grabbing; }
+    .player { background: #22d3ee; color: #020617; }
+    .enemy { background: #f43f5e; color: white; }
+    .shot {
+      position: absolute;
+      height: 3px;
+      background: white;
+      transform-origin: left center;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .shot.fire { animation: shotFlash 360ms ease-out; }
+    .unit.hit { animation: hitPulse 360ms ease; }
+    .unit.destroying { animation: destroyedFade 1200ms ease forwards; }
+    @keyframes shotFlash {
+      0% { opacity: 0; transform: var(--shot-transform) scaleX(0); }
+      20% { opacity: 1; transform: var(--shot-transform) scaleX(1); }
+      100% { opacity: 0; transform: var(--shot-transform) scaleX(1); }
+    }
+    @keyframes hitPulse {
+      0% { filter: brightness(1); transform: translate(-50%, -50%) scale(1); }
+      35% { filter: brightness(2.4); transform: translate(-50%, -50%) scale(1.25); }
+      100% { filter: brightness(1); transform: translate(-50%, -50%) scale(1); }
+    }
+    @keyframes destroyedFade {
+      0% { opacity: 1; filter: brightness(2); transform: translate(-50%, -50%) scale(1.15); }
+      60% { opacity: .45; }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(.25); }
+    }
+    .side { display: grid; gap: 16px; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .stat { background: #1e293b; border-radius: 12px; padding: 12px; }
+    .num { font-size: 28px; font-weight: 800; }
+    .small { font-size: 12px; color: #94a3b8; }
+    pre, #logBox, .unit-list {
+      margin: 0;
+      max-height: 240px;
+      overflow: auto;
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 12px;
+    }
+    pre { white-space: pre-wrap; }
+    #logBox { padding-right: 4px; }
+    .log-item { background: #1e293b; border-radius: 10px; padding: 10px; margin-bottom: 8px; font-size: 14px; }
+    .log-good { border-left: 4px solid #22c55e; color: #bbf7d0; }
+    .log-bad { border-left: 4px solid #ef4444; color: #fecaca; }
+    .log-end { border-left: 4px solid #facc15; color: #fef08a; font-weight: 800; }
+    .status { color: #facc15; font-weight: 800; }
+    .unit-row { display: grid; grid-template-columns: 54px 1fr 70px 70px; gap: 8px; align-items: end; margin-bottom: 8px; }
+    .unit-chip { font-weight: 800; padding-bottom: 10px; }
+    .hidden { display: none !important; }
+    @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app-tabs">
+    <button id="gameTabBtn" class="tab-btn active">Game</button>
+    <button id="settingsTabBtn" class="tab-btn">Settings</button>
+    <button id="helpTabBtn" class="tab-btn">Help</button>
+  </div>
+
+  <main id="appMain">
+    <section class="card">
+      <div class="top">
+        <div>
+          <h1>B.I.R.A. Tactics Prompt</h1>
+          <p id="subtitle">Battle Intelligence Response Arena</p>
+        </div>
+        <button id="resetBtn">Reset game</button>
+      </div>
+
+      <section id="gameTab">
+        <div class="board-wrap">
+          <div class="corner-label"></div>
+          <div id="colLabels" class="col-labels"></div>
+          <div id="rowLabels" class="row-labels"></div>
+          <div id="board" class="board"></div>
+        </div>
+        <p id="viewInfo" class="small" style="margin-top:10px"></p>
+      </section>
+
+      <section id="settingsTab" class="hidden">
+        <h3>Starting board</h3>
+        <p class="small" style="margin-bottom:10px">Drag units to set starting positions. Edit exact values on the right.</p>
+
+        <div class="board-wrap" style="margin-bottom:12px">
+          <div class="corner-label"></div>
+          <div id="setupColLabels" class="col-labels"></div>
+          <div id="setupRowLabels" class="row-labels"></div>
+          <div id="setupBoard" class="board"></div>
+        </div>
+      </section>
+
+      <section id="helpTab" class="hidden">
+        <div class="card" style="background:#020617">
+          <h2>B.I.R.A. Tactics Prompt</h2>
+          <p><b>Battle Intelligence Response Arena</b></p>
+
+          <h3 style="margin-top:18px">What it is</h3>
+          <p>Configurable grid. Simultaneous turn resolution. You give a natural-language command, and the browser AI converts it into legal tactical actions.</p>
+
+          <h3 style="margin-top:18px">How to play</h3>
+          <p>Write an order in the command box, then click <b>Execute turn</b>. Your units and enemy units choose actions for the same turn. Attacks are resolved simultaneously, then surviving units move.</p>
+
+          <h3 style="margin-top:18px">Core rules</h3>
+          <p>Each unit occupies one cell. Units have HP, movement range, attack range, and damage. Actions are limited to <b>MOVE</b> and <b>ATTACK</b>. The AI can only choose legal action IDs generated by the game engine.</p>
+
+          <h3 style="margin-top:18px">Simultaneous combat</h3>
+          <p>If two units shoot each other in the same turn, both attacks happen before destroyed units are removed. This means both units can be destroyed in the same turn.</p>
+
+          <h3 style="margin-top:18px">Victory and defeat</h3>
+          <p>A side loses if it has no units or no legal moves. If both sides have no units or legal moves, the game is a draw. If the turn limit is reached, the side with more surviving units wins. Equal unit count means a draw. A turn limit of 0 means no limit.</p>
+
+          <h3 style="margin-top:18px">Configuration</h3>
+          <p>In Settings, you can change columns, rows, turn limit, unit count, HP, damage, movement range, and attack range. You can drag starting units on the setup board or edit their exact column and row. Columns continue as A, B, C... Z, AA, AB, AC...</p>
+
+          <h3 style="margin-top:18px">Log colors</h3>
+          <p>Green messages are good for the player. Red messages are bad for the player. Yellow messages mark the end of the game.</p>
+
+          <h3 style="margin-top:18px">Author</h3>
+          <p>Author: <b>Jota Feldmann</b></p>
+
+          <p style="margin-top:24px">This game is a dedication to my brother Bira.</p>
+        </div>
+      </section>
+    </section>
+
+    <aside class="side">
+      <div id="gameSide" class="side-group">
+        <section class="card">
+          <div class="stats">
+            <div class="stat"><div class="small">Turns/Limit</div><div id="turnCount" class="num">1/20</div></div>
+            <div class="stat"><div class="small">Player</div><div id="playerCount" class="num">0</div></div>
+            <div class="stat"><div class="small">Enemy</div><div id="enemyCount" class="num">0</div></div>
+          </div>
+          <textarea id="promptInput" style="margin-top:14px">advance carefully and attack if it is safe</textarea>
+          <button id="turnBtn" style="width:100%;margin-top:12px" disabled>AI unavailable</button>
+        </section>
+
+        <section class="card">
+          <h2>Latest AI JSON</h2>
+          <pre id="ordersBox">no orders yet</pre>
+        </section>
+
+        <section class="card">
+          <h2>Log</h2>
+          <div id="logBox"></div>
+        </section>
+      </div>
+
+      <div id="settingsSide" class="side-group hidden">
+        <section class="card">
+          <h2>Settings</h2>
+
+          <div class="grid3">
+            <div class="field">
+              <label>Columns</label>
+              <input id="cfgCols" type="number" min="2" max="80" />
+            </div>
+            <div class="field">
+              <label>Rows</label>
+              <input id="cfgRows" type="number" min="2" max="80" />
+            </div>
+            <div class="field">
+              <label>Turn limit, 0 = no limit</label>
+              <input id="cfgTurnLimit" type="number" min="0" max="999" />
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label>Player units</label>
+              <input id="cfgPlayerCount" type="number" min="0" max="40" />
+            </div>
+            <div class="field">
+              <label>Enemy units</label>
+              <input id="cfgEnemyCount" type="number" min="0" max="40" />
+            </div>
+          </div>
+
+          <div class="grid3">
+            <div class="field">
+              <label>Move range</label>
+              <input id="cfgMoveRange" type="number" min="1" max="30" />
+            </div>
+            <div class="field">
+              <label>Attack range</label>
+              <input id="cfgAttackRange" type="number" min="1" max="30" />
+            </div>
+            <div class="field">
+              <label>Max HP</label>
+              <input id="cfgMaxHp" type="number" min="1" max="20" />
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label>Damage</label>
+              <input id="cfgDamage" type="number" min="1" max="20" />
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button id="applySettingsBtn" style="width:100%">Apply settings and reset game</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Unit positions</h2>
+          <p class="small" style="margin-bottom:10px">Columns continue as AA, AB, AC...</p>
+          <div id="unitList" class="unit-list"></div>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const DEFAULT_CONFIG = {
+      cols: 20,
+      rows: 20,
+      turnLimit: 20,
+      playerCount: 4,
+      enemyCount: 4,
+      moveRange: 5,
+      attackRange: 3,
+      maxHp: 2,
+      damage: 1
+    };
+
+    let config = structuredClone(DEFAULT_CONFIG);
+
+    let initialUnits = makeDefaultUnits(config);
+    let units = structuredClone(initialUnits);
+    let logs = [{ text: "Rules: configurable units, simultaneous combat, AI chooses legal action IDs.", type: "normal" }];
+    let orders = null;
+    let aiReady = false;
+    let aiStatus = "checking";
+    let turn = 1;
+    let isProcessing = false;
+    let gameOver = false;
+    let gameStatus = "";
+    let pendingDestroyed = [];
+    let effectQueue = [];
+    let activeTab = "game";
+    let draggingSetupId = null;
+
+    const $ = (id) => document.getElementById(id);
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    function clampNum(value, min, max, fallback) {
+      const n = Number.parseInt(value, 10);
+      if (!Number.isFinite(n)) return fallback;
+      return Math.max(min, Math.min(max, n));
+    }
+
+    function colName(index) {
+      let n = index + 1;
+      let s = "";
+      while (n > 0) {
+        const r = (n - 1) % 26;
+        s = String.fromCharCode(65 + r) + s;
+        n = Math.floor((n - 1) / 26);
+      }
+      return s;
+    }
+
+    function parseColName(value) {
+      const text = String(value || "").trim().toUpperCase();
+      if (/^\d+$/.test(text)) return Math.max(0, Number.parseInt(text, 10) - 1);
+      let n = 0;
+      for (const ch of text) {
+        const code = ch.charCodeAt(0);
+        if (code < 65 || code > 90) return NaN;
+        n = n * 26 + (code - 64);
+      }
+      return n - 1;
+    }
+
+    function posName(x, y) { return `${colName(x)}${y + 1}`; }
+
+    function cellCenterPercent(x, y) {
+      return {
+        left: ((x + 0.5) / config.cols) * 100,
+        top: ((y + 0.5) / config.rows) * 100
+      };
+    }
+
+    function dist(a, b) { return Math.abs(a.x - b.x) + Math.abs(a.y - b.y); }
+    function distXY(a, x, y) { return Math.abs(a.x - x) + Math.abs(a.y - y); }
+    function clampX(n) { return Math.max(0, Math.min(config.cols - 1, n)); }
+    function clampY(n) { return Math.max(0, Math.min(config.rows - 1, n)); }
+    function unitAt(list, x, y, exceptId = null) {
+      return list.find((u) => u.hp > 0 && u.id !== exceptId && u.x === x && u.y === y);
+    }
+    function nearestEnemy(unit, enemies) { return [...enemies].sort((a, b) => dist(unit, a) - dist(unit, b))[0]; }
+    function enemySide(side) { return side === "player" ? "enemy" : "player"; }
+    function unitName(unit) { return `${unit.side === "enemy" ? "Enemy" : "Player"} ${unit.id}`; }
+
+    function defaultPosition(side, index, cfg = config) {
+      const rows = Math.max(1, cfg.rows);
+      const bandY = Math.floor(((index + 1) * rows) / (side === "player" ? cfg.playerCount + 1 : cfg.enemyCount + 1));
+      const xBase = side === "player" ? 1 + Math.floor(index / Math.max(1, rows - 2)) : cfg.cols - 2 - Math.floor(index / Math.max(1, rows - 2));
+      return {
+        x: Math.max(0, Math.min(cfg.cols - 1, xBase)),
+        y: Math.max(0, Math.min(cfg.rows - 1, bandY))
+      };
+    }
+
+    function makeDefaultUnits(cfg) {
+      const list = [];
+      for (let i = 0; i < cfg.playerCount; i++) {
+        const p = defaultPosition("player", i, cfg);
+        list.push({ id: `u${i + 1}`, side: "player", hp: cfg.maxHp, x: p.x, y: p.y });
+      }
+      for (let i = 0; i < cfg.enemyCount; i++) {
+        const p = defaultPosition("enemy", i, cfg);
+        list.push({ id: `e${i + 1}`, side: "enemy", hp: cfg.maxHp, x: p.x, y: p.y });
+      }
+      return avoidOverlaps(list, cfg);
+    }
+
+    function avoidOverlaps(list, cfg = config) {
+      const used = new Set();
+      return list.map((u) => {
+        let x = Math.max(0, Math.min(cfg.cols - 1, u.x));
+        let y = Math.max(0, Math.min(cfg.rows - 1, u.y));
+        for (let tries = 0; tries < cfg.cols * cfg.rows; tries++) {
+          const key = `${x},${y}`;
+          if (!used.has(key)) {
+            used.add(key);
+            return { ...u, x, y, hp: Math.max(1, Math.min(cfg.maxHp, u.hp || cfg.maxHp)) };
+          }
+          x = (x + 1) % cfg.cols;
+          if (x === 0) y = (y + 1) % cfg.rows;
+        }
+        return { ...u, x, y, hp: Math.max(1, Math.min(cfg.maxHp, u.hp || cfg.maxHp)) };
+      });
+    }
+
+    function syncConfigInputs() {
+      $("cfgCols").value = config.cols;
+      $("cfgRows").value = config.rows;
+      $("cfgTurnLimit").value = config.turnLimit;
+      $("cfgPlayerCount").value = config.playerCount;
+      $("cfgEnemyCount").value = config.enemyCount;
+      $("cfgMoveRange").value = config.moveRange;
+      $("cfgAttackRange").value = config.attackRange;
+      $("cfgMaxHp").value = config.maxHp;
+      $("cfgDamage").value = config.damage;
+    }
+
+    function readConfigInputs() {
+      return {
+        cols: clampNum($("cfgCols").value, 2, 80, config.cols),
+        rows: clampNum($("cfgRows").value, 2, 80, config.rows),
+        turnLimit: clampNum($("cfgTurnLimit").value, 0, 999, config.turnLimit),
+        playerCount: clampNum($("cfgPlayerCount").value, 0, 40, config.playerCount),
+        enemyCount: clampNum($("cfgEnemyCount").value, 0, 40, config.enemyCount),
+        moveRange: clampNum($("cfgMoveRange").value, 1, 30, config.moveRange),
+        attackRange: clampNum($("cfgAttackRange").value, 1, 30, config.attackRange),
+        maxHp: clampNum($("cfgMaxHp").value, 1, 20, config.maxHp),
+        damage: clampNum($("cfgDamage").value, 1, 20, config.damage)
+      };
+    }
+
+    function resizeInitialUnits(nextConfig) {
+      const oldById = new Map(initialUnits.map((u) => [u.id, u]));
+      const next = [];
+
+      for (let i = 0; i < nextConfig.playerCount; i++) {
+        const id = `u${i + 1}`;
+        const old = oldById.get(id);
+        const p = old || defaultPosition("player", i, nextConfig);
+        next.push({ id, side: "player", hp: nextConfig.maxHp, x: clampPosX(p.x, nextConfig), y: clampPosY(p.y, nextConfig) });
+      }
+
+      for (let i = 0; i < nextConfig.enemyCount; i++) {
+        const id = `e${i + 1}`;
+        const old = oldById.get(id);
+        const p = old || defaultPosition("enemy", i, nextConfig);
+        next.push({ id, side: "enemy", hp: nextConfig.maxHp, x: clampPosX(p.x, nextConfig), y: clampPosY(p.y, nextConfig) });
+      }
+
+      return avoidOverlaps(next, nextConfig);
+    }
+
+    function clampPosX(x, cfg) { return Math.max(0, Math.min(cfg.cols - 1, Number.isFinite(Number(x)) ? Number(x) : 0)); }
+    function clampPosY(y, cfg) { return Math.max(0, Math.min(cfg.rows - 1, Number.isFinite(Number(y)) ? Number(y) : 0)); }
+
+    function applySettings() {
+      const nextConfig = readConfigInputs();
+      config = nextConfig;
+      initialUnits = resizeInitialUnits(nextConfig);
+      units = structuredClone(initialUnits);
+      orders = null;
+      turn = 1;
+      isProcessing = false;
+      gameOver = false;
+      gameStatus = "";
+      pendingDestroyed = [];
+      effectQueue = [];
+      syncConfigInputs();
+      addLog("Settings applied. Game reset with the new configuration.", "normal");
+      render();
+    }
+
+    function inferTargetFromPrompt(text) {
+      const p = String(text || "").toLowerCase();
+      if (p.includes("corner")) return { x: 0, y: 0 };
+      if (p.includes("top left")) return { x: 0, y: 0 };
+      if (p.includes("top right")) return { x: config.cols - 1, y: 0 };
+      if (p.includes("bottom left")) return { x: 0, y: config.rows - 1 };
+      if (p.includes("bottom right")) return { x: config.cols - 1, y: config.rows - 1 };
+      if (p.includes("north")) return { x: null, y: 0 };
+      if (p.includes("south")) return { x: null, y: config.rows - 1 };
+      if (p.includes("west")) return { x: 0, y: null };
+      if (p.includes("east")) return { x: config.cols - 1, y: null };
+      return null;
+    }
+
+    function targetDistance(x, y, target) {
+      if (!target) return 0;
+      const dx = target.x === null ? 0 : Math.abs(x - target.x);
+      const dy = target.y === null ? 0 : Math.abs(y - target.y);
+      return dx + dy;
+    }
+
+    function makeLegalActionsForSide(list, side, humanPrompt = "") {
+      const actions = [];
+      let nextId = 1;
+      const actors = list.filter((u) => u.side === side && u.hp > 0);
+      const targets = list.filter((u) => u.side === enemySide(side) && u.hp > 0);
+      const promptTarget = side === "player" ? inferTargetFromPrompt(humanPrompt) : null;
+      const prefix = side === "player" ? "A" : "E";
+
+      for (const unit of actors) {
+        const unitActions = [];
+
+        for (const target of targets) {
+          if (dist(unit, target) <= config.attackRange) {
+            unitActions.push({
+              actionId: `${prefix}${nextId++}`,
+              unitId: unit.id,
+              side,
+              type: "ATTACK",
+              targetId: target.id,
+              label: `${unit.id} ATTACK ${target.id} at ${posName(target.x, target.y)}`
+            });
+          }
+        }
+
+        const currentNearest = targets.length ? Math.min(...targets.map((e) => dist(unit, e))) : 999;
+        const moveCandidates = [];
+
+        for (let dx = -config.moveRange; dx <= config.moveRange; dx++) {
+          for (let dy = -config.moveRange; dy <= config.moveRange; dy++) {
+            const d = Math.abs(dx) + Math.abs(dy);
+            if (d === 0 || d > config.moveRange) continue;
+
+            const x = unit.x + dx;
+            const y = unit.y + dy;
+            if (x < 0 || y < 0 || x >= config.cols || y >= config.rows) continue;
+            if (unitAt(list, x, y)) continue;
+
+            const nearest = targets.length ? Math.min(...targets.map((e) => distXY(e, x, y))) : 999;
+            const danger = targets.filter((e) => distXY(e, x, y) <= config.attackRange).length;
+            const progress = currentNearest - nearest;
+            const targetScore = promptTarget ? -targetDistance(x, y, promptTarget) * 12 : 0;
+            const combatScore = progress * 10 - danger * 20 - nearest;
+            const score = promptTarget ? targetScore - danger * 30 : combatScore;
+
+            moveCandidates.push({
+              actionId: `${prefix}${nextId++}`,
+              unitId: unit.id,
+              side,
+              type: "MOVE",
+              to: [x, y],
+              danger,
+              score,
+              label: `${unit.id} MOVE ${posName(x, y)}`
+            });
+          }
+        }
+
+        moveCandidates
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 10)
+          .forEach((a) => unitActions.push(a));
+
+        actions.push(...unitActions);
+      }
+
+      return actions;
+    }
+
+    function resolveChosenActions(aiResult, legalActions) {
+      const byId = new Map(legalActions.map((a) => [a.actionId, a]));
+      const usedUnits = new Set();
+      const usedDestinations = new Set();
+      const resolved = [];
+      const invalid = [];
+
+      for (const choice of aiResult.actions || []) {
+        const actionId = typeof choice === "string" ? choice : choice.actionId;
+        const legal = byId.get(actionId);
+
+        if (!legal) {
+          invalid.push({ actionId, reason: "Action ID is not in legalActions." });
+          continue;
+        }
+
+        if (usedUnits.has(legal.unitId)) {
+          invalid.push({ actionId, reason: `Unit ${legal.unitId} already has an action.` });
+          continue;
+        }
+
+        if (legal.type === "MOVE") {
+          const key = `${legal.to[0]},${legal.to[1]}`;
+          if (usedDestinations.has(key)) {
+            invalid.push({ actionId, reason: `Destination ${posName(legal.to[0], legal.to[1])} already chosen.` });
+            continue;
+          }
+          usedDestinations.add(key);
+        }
+
+        usedUnits.add(legal.unitId);
+        resolved.push(legal);
+      }
+
+      return { resolved, invalid };
+    }
+
+    function chooseEnemyActions(list) {
+      const legal = makeLegalActionsForSide(list, "enemy");
+      const byUnit = new Map();
+
+      for (const action of legal) {
+        if (!byUnit.has(action.unitId)) byUnit.set(action.unitId, []);
+        byUnit.get(action.unitId).push(action);
+      }
+
+      const chosen = [];
+      const usedDestinations = new Set();
+
+      for (const [unitId, actions] of byUnit) {
+        const attacks = actions.filter((a) => a.type === "ATTACK");
+        let pick = null;
+
+        if (attacks.length) {
+          pick = attacks
+            .map((a) => ({ action: a, target: list.find((u) => u.id === a.targetId) }))
+            .sort((a, b) => (a.target?.hp ?? 99) - (b.target?.hp ?? 99))[0].action;
+        } else {
+          for (const candidate of actions.filter((a) => a.type === "MOVE").sort((a, b) => b.score - a.score)) {
+            const key = `${candidate.to[0]},${candidate.to[1]}`;
+            if (!usedDestinations.has(key)) {
+              pick = candidate;
+              usedDestinations.add(key);
+              break;
+            }
+          }
+        }
+
+        if (pick) chosen.push(pick);
+      }
+
+      return chosen;
+    }
+
+    function queueAttackEffect(actorBefore, targetBefore, destroyed) {
+      effectQueue.push({ type: "attack", actor: actorBefore, target: targetBefore, destroyed });
+    }
+
+    function resolveSimultaneousTurn(startList, playerActions, enemyActions) {
+      const start = structuredClone(startList);
+      const allActions = [...playerActions, ...enemyActions];
+      const events = [];
+      const damageByTarget = new Map();
+      const attackRecords = [];
+
+      for (const action of allActions.filter((a) => a.type === "ATTACK")) {
+        const actor = start.find((u) => u.id === action.unitId && u.hp > 0);
+        const target = start.find((u) => u.id === action.targetId && u.hp > 0);
+        if (!actor || !target) continue;
+        if (actor.side === target.side) continue;
+        if (dist(actor, target) > config.attackRange) continue;
+
+        damageByTarget.set(target.id, (damageByTarget.get(target.id) || 0) + config.damage);
+        attackRecords.push({ action, actor, target });
+      }
+
+      const destroyedIds = new Set();
+      for (const [targetId, totalDamage] of damageByTarget.entries()) {
+        const target = start.find((u) => u.id === targetId);
+        if (target && target.hp - totalDamage <= 0) destroyedIds.add(targetId);
+      }
+
+      const attackersByTarget = new Map();
+      for (const rec of attackRecords) {
+        if (!attackersByTarget.has(rec.target.id)) attackersByTarget.set(rec.target.id, []);
+        attackersByTarget.get(rec.target.id).push(rec.actor);
+      }
+
+      for (const rec of attackRecords) {
+        const totalDamage = damageByTarget.get(rec.target.id) || 0;
+        const hpAfter = Math.max(0, rec.target.hp - totalDamage);
+        const destroyed = destroyedIds.has(rec.target.id);
+        queueAttackEffect({ ...rec.actor }, { ...rec.target }, destroyed);
+
+        if (destroyed && (attackersByTarget.get(rec.target.id) || []).length === 1) {
+          events.push({
+            text: `${unitName(rec.actor)} shot ${unitName(rec.target)} at ${posName(rec.target.x, rec.target.y)} for ${config.damage} damage and destroyed it.`,
+            type: rec.target.side === "enemy" ? "good" : "bad"
+          });
+        } else {
+          events.push({
+            text: `${unitName(rec.actor)} shot ${unitName(rec.target)} at ${posName(rec.target.x, rec.target.y)} for ${config.damage} damage. ${unitName(rec.target)} has ${hpAfter} HP left.`,
+            type: rec.target.side === "enemy" ? "good" : "bad"
+          });
+        }
+      }
+
+      for (const targetId of destroyedIds) {
+        const target = start.find((u) => u.id === targetId);
+        const attackers = attackersByTarget.get(targetId) || [];
+
+        if (target && attackers.length > 1) {
+          events.push({
+            text: `${unitName(target)} was destroyed by combined fire.`,
+            type: target.side === "enemy" ? "good" : "bad"
+          });
+        }
+
+        if (target) {
+          pendingDestroyed.push({ ...target, hp: 0, destroying: true });
+          setTimeout(() => {
+            pendingDestroyed = pendingDestroyed.filter((u) => u.id !== target.id);
+            render();
+          }, 1250);
+        }
+      }
+
+      let afterDamage = start
+        .map((u) => ({ ...u, hp: Math.max(0, u.hp - (damageByTarget.get(u.id) || 0)) }))
+        .filter((u) => u.hp > 0);
+
+      const moveActions = allActions.filter((a) => a.type === "MOVE");
+      const moverIds = new Set(moveActions.map((a) => a.unitId));
+      const staticOccupied = new Set(
+        afterDamage
+          .filter((u) => !moverIds.has(u.id))
+          .map((u) => `${u.x},${u.y}`)
+      );
+      const destinationCounts = new Map();
+
+      for (const action of moveActions) {
+        const actor = afterDamage.find((u) => u.id === action.unitId);
+        if (!actor) {
+          const deadActor = start.find((u) => u.id === action.unitId);
+          if (deadActor) events.push({
+            text: `${unitName(deadActor)} was destroyed before it could move.`,
+            type: deadActor.side === "player" ? "bad" : "good"
+          });
+          continue;
+        }
+
+        const key = `${action.to[0]},${action.to[1]}`;
+        destinationCounts.set(key, (destinationCounts.get(key) || 0) + 1);
+      }
+
+      for (const action of moveActions) {
+        const actor = afterDamage.find((u) => u.id === action.unitId);
+        if (!actor) continue;
+
+        const key = `${action.to[0]},${action.to[1]}`;
+        if (staticOccupied.has(key)) {
+          events.push(`${unitName(actor)} could not move to ${posName(action.to[0], action.to[1])}; the cell was occupied.`);
+          continue;
+        }
+        if ((destinationCounts.get(key) || 0) > 1) {
+          events.push(`${unitName(actor)} could not move to ${posName(action.to[0], action.to[1])}; movement collision.`);
+          continue;
+        }
+
+        const from = [actor.x, actor.y];
+        actor.x = action.to[0];
+        actor.y = action.to[1];
+        events.push(`${unitName(actor)} moved from ${posName(from[0], from[1])} to ${posName(actor.x, actor.y)}.`);
+      }
+
+      return { list: afterDamage, events };
+    }
+
+    function checkOutcome(list, completedTurn = 0) {
+      const playerUnits = list.filter((u) => u.side === "player" && u.hp > 0);
+      const enemyUnits = list.filter((u) => u.side === "enemy" && u.hp > 0);
+      const playerCanAct = playerUnits.length > 0 && makeLegalActionsForSide(list, "player", $("promptInput")?.value || "").length > 0;
+      const enemyCanAct = enemyUnits.length > 0 && makeLegalActionsForSide(list, "enemy").length > 0;
+
+      if (!playerCanAct && !enemyCanAct) return "Draw: both sides have no units or legal moves.";
+      if (!playerCanAct) return "Enemy wins: player has no units or legal moves.";
+      if (!enemyCanAct) return "Player wins: enemy has no units or legal moves.";
+
+      if (config.turnLimit > 0 && completedTurn >= config.turnLimit) {
+        if (playerUnits.length > enemyUnits.length) return `Player wins by unit count after ${config.turnLimit} turns.`;
+        if (enemyUnits.length > playerUnits.length) return `Enemy wins by unit count after ${config.turnLimit} turns.`;
+        return `Draw after ${config.turnLimit} turns: equal unit count.`;
+      }
+
+      return null;
+    }
+
+    function endGame(message) {
+      gameOver = true;
+      gameStatus = message;
+      addLog(`Game over: ${message}`, "end");
+      render();
+    }
+
+    const ia = {
+      getApi() {
+        return window.LanguageModel || window.ai?.languageModel || null;
+      },
+
+      options() {
+        return {
+          expectedInputs: [{ type: "text", languages: ["en"] }],
+          expectedOutputs: [{ type: "text", languages: ["en"] }]
+        };
+      },
+
+      async status() {
+        try {
+          const api = this.getApi();
+          if (!api?.create) return "unavailable";
+          if (api.availability) return await api.availability(this.options());
+          return "available";
+        } catch (err) {
+          console.error("AI availability error:", err);
+          return "unavailable";
+        }
+      },
+
+      async isAvailable() {
+        const status = await this.status();
+        return ["available", "readily", "after-download", "downloadable", "downloading"].includes(status);
+      },
+
+      schema(legalActions) {
+        return {
+          type: "object",
+          properties: {
+            intent: { type: "string" },
+            note: { type: "string" },
+            actions: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  actionId: {
+                    type: "string",
+                    enum: legalActions.map((a) => a.actionId)
+                  }
+                },
+                required: ["actionId"]
+              }
+            }
+          },
+          required: ["actions"]
+        };
+      },
+
+      buildPrompt(humanPrompt, list, legalActions, lastError) {
+        return `You control only the player units.
+
+Important:
+- Choose actionId values ONLY from the Legal actions list.
+- Never create action IDs.
+- Never create coordinates.
+- Copy actionId exactly.
+- Choose at most one action per unit.
+- If the user asks for a far destination, choose the legal move that gets closest this turn.
+- Combat is simultaneous with the enemy plan.
+
+Rules:
+- ${config.cols} columns by ${config.rows} rows
+- columns use labels like A, B, ..., Z, AA, AB
+- each unit occupies 1x1
+- max HP is ${config.maxHp}
+- MOVE: Manhattan distance up to ${config.moveRange}
+- ATTACK: Manhattan range up to ${config.attackRange}
+- damage is ${config.damage}
+- turn limit is ${config.turnLimit === 0 ? "none" : config.turnLimit}
+
+Human command:
+${humanPrompt}
+
+Previous validation error:
+${JSON.stringify(lastError)}
+
+State:
+${JSON.stringify(list.map(u => ({id:u.id, side:u.side, hp:u.hp, cell:posName(u.x,u.y), x:u.x, y:u.y})))}
+
+Legal actions:
+${JSON.stringify(legalActions.map(a => ({id:a.actionId, unit:a.unitId, action:a.label, danger:a.danger})))}
+
+Return only valid JSON in this shape:
+{
+  "intent": "short explanation",
+  "note": "short note",
+  "actions": [
+    { "actionId": "one id copied exactly from legalActions" }
+  ]
+}`;
+      },
+
+      async ask(humanPrompt, list, legalActions, lastError) {
+        const api = this.getApi();
+        if (!api?.create) throw new Error("Chrome AI is not available. The game cannot be played.");
+
+        try {
+          const session = await api.create({
+            ...this.options(),
+            monitor(m) {
+              m.addEventListener("downloadprogress", (e) => {
+                const pct = Math.round(e.loaded * 100);
+                aiStatus = `downloading ${pct}%`;
+              });
+            }
+          });
+
+          const text = await session.prompt(this.buildPrompt(humanPrompt, list, legalActions, lastError), {
+            responseConstraint: this.schema(legalActions)
+          });
+
+          return { mode: "chrome-ai", ...JSON.parse(text) };
+        } catch (err) {
+          if (err?.name === "NotAllowedError") {
+            throw new Error("AI blocked by Permission Policy. Use localhost and enable the Chrome flags.");
+          }
+          throw new Error(`Failed to use AI: ${err?.message || "unknown error"}`);
+        }
+      }
+    };
+
+    function normalizeLog(entry, fallbackType = "normal") {
+      if (typeof entry === "string") return { text: entry, type: fallbackType };
+      return { text: entry.text, type: entry.type || fallbackType };
+    }
+
+    function addLog(text, type = "normal") {
+      logs = [...logs, normalizeLog(text, type)].slice(-60);
+      render();
+    }
+
+    function addLogs(entries, fallbackType = "normal") {
+      logs = [...logs, ...entries.map((e) => normalizeLog(e, fallbackType))].slice(-60);
+      render();
+    }
+
+    function playEffects() {
+      const board = $("board");
+
+      for (const fx of effectQueue) {
+        if (fx.type !== "attack") continue;
+
+        const a = cellCenterPercent(fx.actor.x, fx.actor.y);
+        const t = cellCenterPercent(fx.target.x, fx.target.y);
+        const dx = t.left - a.left;
+        const dy = t.top - a.top;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+        const shot = document.createElement("div");
+        shot.className = "shot fire";
+        shot.style.left = `${a.left}%`;
+        shot.style.top = `${a.top}%`;
+        shot.style.width = `${length}%`;
+        shot.style.setProperty("--shot-transform", `rotate(${angle}deg)`);
+        board.appendChild(shot);
+        setTimeout(() => shot.remove(), 420);
+
+        const targetEl = board.querySelector(`[data-id="${fx.target.id}"]`);
+        if (targetEl) {
+          targetEl.classList.add(fx.destroyed ? "destroying" : "hit");
+          setTimeout(() => targetEl.classList.remove("hit"), 420);
+        }
+      }
+
+      effectQueue = [];
+    }
+
+    function renderLabels(colEl, rowEl) {
+      colEl.style.gridTemplateColumns = `repeat(${config.cols}, 1fr)`;
+      rowEl.style.gridTemplateRows = `repeat(${config.rows}, 1fr)`;
+      colEl.innerHTML = Array.from({ length: config.cols }, (_, i) => `<div>${colName(i)}</div>`).join("");
+      rowEl.innerHTML = Array.from({ length: config.rows }, (_, i) => `<div>${i + 1}</div>`).join("");
+    }
+
+    function renderUnitsOnBoard(board, list, setup = false) {
+      const visibleUnits = setup ? list : [...list, ...pendingDestroyed];
+      const aliveIds = new Set(visibleUnits.map((u) => u.id));
+
+      for (const el of [...board.querySelectorAll(".unit")]) {
+        if (!aliveIds.has(el.dataset.id)) {
+          el.style.opacity = "0";
+          setTimeout(() => el.remove(), 240);
+        }
+      }
+
+      for (const u of visibleUnits) {
+        let el = board.querySelector(`[data-id="${u.id}"]`);
+        if (!el) {
+          el = document.createElement("div");
+          el.dataset.id = u.id;
+          el.className = `unit ${u.side}${setup ? " setup-unit" : ""}`;
+          board.appendChild(el);
+        }
+
+        el.textContent = `${u.id} ${u.hp}HP`;
+        el.title = `${u.id} HP:${u.hp} ${posName(u.x, u.y)}`;
+        el.style.opacity = "1";
+        const pos = cellCenterPercent(u.x, u.y);
+        el.style.left = `${pos.left}%`;
+        el.style.top = `${pos.top}%`;
+      }
+    }
+
+    function renderBoardBackground(board) {
+      board.style.backgroundImage = "linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px)";
+      board.style.backgroundSize = `${100 / config.cols}% ${100 / config.rows}%`;
+    }
+
+    function renderUnitList() {
+      $("unitList").innerHTML = initialUnits.map((u) => `
+        <div class="unit-row">
+          <div class="unit-chip">${u.id}<br><span class="small">${u.side}</span></div>
+          <div>
+            <label>Column</label>
+            <input data-pos-id="${u.id}" data-pos-field="col" value="${colName(u.x)}" />
+          </div>
+          <div>
+            <label>Row</label>
+            <input data-pos-id="${u.id}" data-pos-field="row" type="number" min="1" max="${config.rows}" value="${u.y + 1}" />
+          </div>
+          <div>
+            <label>HP</label>
+            <input data-pos-id="${u.id}" data-pos-field="hp" type="number" min="1" max="${config.maxHp}" value="${u.hp}" />
+          </div>
+        </div>
+      `).join("");
+
+      for (const input of $("unitList").querySelectorAll("input")) {
+        input.addEventListener("change", () => {
+          const id = input.dataset.posId;
+          const field = input.dataset.posField;
+          const unit = initialUnits.find((u) => u.id === id);
+          if (!unit) return;
+
+          if (field === "col") {
+            const x = parseColName(input.value);
+            if (Number.isFinite(x)) unit.x = clampX(x);
+          }
+          if (field === "row") {
+            unit.y = clampY(Number.parseInt(input.value, 10) - 1);
+          }
+          if (field === "hp") {
+            unit.hp = clampNum(input.value, 1, config.maxHp, unit.hp);
+          }
+
+          initialUnits = avoidOverlaps(initialUnits, config);
+          render();
+        });
+      }
+    }
+
+    function render() {
+      $("appMain").classList.toggle("settings-mode", activeTab === "settings");
+      $("appMain").classList.toggle("help-mode", activeTab === "help");
+      $("gameTab").classList.toggle("hidden", activeTab !== "game");
+      $("settingsTab").classList.toggle("hidden", activeTab !== "settings");
+      $("helpTab").classList.toggle("hidden", activeTab !== "help");
+      $("gameTabBtn").classList.toggle("active", activeTab === "game");
+      $("settingsTabBtn").classList.toggle("active", activeTab === "settings");
+      $("helpTabBtn").classList.toggle("active", activeTab === "help");
+      $("gameSide").classList.toggle("hidden", activeTab !== "game");
+      $("settingsSide").classList.toggle("hidden", activeTab !== "settings");
+      $("resetBtn").classList.toggle("hidden", activeTab === "help");
+      $("resetBtn").textContent = activeTab === "settings" ? "Reset to standards" : "Reset game";
+
+      const board = $("board");
+      renderBoardBackground(board);
+      renderLabels($("colLabels"), $("rowLabels"));
+      renderUnitsOnBoard(board, units, false);
+
+      const setupBoard = $("setupBoard");
+      renderBoardBackground(setupBoard);
+      renderLabels($("setupColLabels"), $("setupRowLabels"));
+      renderUnitsOnBoard(setupBoard, initialUnits, true);
+      renderUnitList();
+
+      $("turnCount").textContent = config.turnLimit === 0 ? `${turn}/∞` : `${turn}/${config.turnLimit}`;
+      $("playerCount").textContent = units.filter((u) => u.side === "player").length;
+      $("enemyCount").textContent = units.filter((u) => u.side === "enemy").length;
+      $("viewInfo").textContent = `Map: ${colName(0)}-${colName(config.cols - 1)}, 1-${config.rows}. ${gameStatus || ""}`;
+      $("ordersBox").textContent = orders ? JSON.stringify(orders, null, 2) : "no orders yet";
+      $("logBox").innerHTML = [...logs].reverse().map((l) => `<div class="log-item log-${l.type || "normal"}">${l.text}</div>`).join("");
+      $("turnBtn").disabled = gameOver || isProcessing || !aiReady || !units.some((u) => u.side === "player") || !units.some((u) => u.side === "enemy");
+      $("turnBtn").textContent = gameOver ? "Game over" : (isProcessing ? "Executing..." : (aiReady ? "Execute turn" : "AI unavailable"));
+
+      requestAnimationFrame(playEffects);
+    }
+
+    async function runTurn() {
+      if (isProcessing || gameOver) return;
+
+      const preOutcome = checkOutcome(units, turn - 1);
+      if (preOutcome) {
+        endGame(preOutcome);
+        return;
+      }
+
+      isProcessing = true;
+      addLog(`Turn ${turn} started.`);
+      render();
+
+      const current = structuredClone(units);
+      let lastError = null;
+      let finalOrders = null;
+      let finalResolved = null;
+
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const legalActions = makeLegalActionsForSide(current, "player", $("promptInput").value);
+
+        if (!legalActions.length) {
+          endGame("Enemy wins: player has no legal moves.");
+          isProcessing = false;
+          return;
+        }
+
+        let aiResult;
+        try {
+          aiResult = await ia.ask($("promptInput").value, current, legalActions, lastError);
+        } catch (err) {
+          aiReady = false;
+          addLog(err.message, "bad");
+          isProcessing = false;
+          render();
+          return;
+        }
+
+        const { resolved, invalid } = resolveChosenActions(aiResult, legalActions);
+        if (invalid.length) {
+          lastError = { attempt, invalid, message: "Some actionIds were not legal." };
+          continue;
+        }
+
+        finalOrders = aiResult;
+        finalResolved = resolved;
+        break;
+      }
+
+      if (!finalOrders) {
+        addLog(`AI failed: ${lastError?.reason || lastError?.message}`, "bad");
+        orders = { error: lastError };
+        isProcessing = false;
+        render();
+        return;
+      }
+
+      const enemyActions = chooseEnemyActions(current);
+
+      orders = {
+        humanOrder: $("promptInput").value,
+        ai: finalOrders,
+        playerActions: finalResolved,
+        enemyController: "rule-based heuristic, not Chrome AI",
+        enemyActions,
+        phase: "simultaneous resolution"
+      };
+
+      addLogs([
+        `Turn ${turn} human order: "${$("promptInput").value}"`,
+        `Turn ${turn} AI intent: ${finalOrders.intent || "none"}`,
+        `Enemy controller: rule-based heuristic, not Chrome AI.`,
+        `Enemy planned ${enemyActions.length} actions.`
+      ]);
+      render();
+
+      await sleep(250);
+
+      const result = resolveSimultaneousTurn(current, finalResolved, enemyActions);
+      units = result.list;
+
+      addLogs(result.events);
+      render();
+
+      await sleep(1250);
+
+      const completedTurn = turn;
+      const outcome = checkOutcome(units, completedTurn);
+      addLog(`Turn ${completedTurn} ended.`);
+
+      if (outcome) {
+        isProcessing = false;
+        endGame(outcome);
+        return;
+      }
+
+      turn += 1;
+      isProcessing = false;
+      render();
+    }
+
+    function resetGame() {
+      units = structuredClone(initialUnits);
+      orders = null;
+      turn = 1;
+      isProcessing = false;
+      gameOver = false;
+      gameStatus = "";
+      pendingDestroyed = [];
+      effectQueue = [];
+      logs = [{ text: "Game reset.", type: "normal" }];
+      render();
+    }
+
+    function resetSettingsToDefaults() {
+      config = structuredClone(DEFAULT_CONFIG);
+      initialUnits = makeDefaultUnits(config);
+      units = structuredClone(initialUnits);
+      orders = null;
+      turn = 1;
+      isProcessing = false;
+      gameOver = false;
+      gameStatus = "";
+      pendingDestroyed = [];
+      effectQueue = [];
+      syncConfigInputs();
+      logs = [{ text: "Default settings restored. Game reset.", type: "normal" }];
+      render();
+    }
+
+    function reset() {
+      if (activeTab === "settings") {
+        resetSettingsToDefaults();
+      } else {
+        resetGame();
+      }
+    }
+
+    function switchTab(tab) {
+      activeTab = tab;
+      render();
+    }
+
+    function setupDragHandlers() {
+      const board = $("setupBoard");
+
+      board.addEventListener("pointerdown", (event) => {
+        const unitEl = event.target.closest(".setup-unit");
+        if (!unitEl) return;
+        draggingSetupId = unitEl.dataset.id;
+        unitEl.classList.add("dragging");
+        event.preventDefault();
+      });
+
+      board.addEventListener("pointerup", (event) => {
+        if (!draggingSetupId) return;
+
+        const rect = board.getBoundingClientRect();
+        const x = clampX(Math.floor(((event.clientX - rect.left) / rect.width) * config.cols));
+        const y = clampY(Math.floor(((event.clientY - rect.top) / rect.height) * config.rows));
+        const unit = initialUnits.find((u) => u.id === draggingSetupId);
+
+        if (unit && !unitAt(initialUnits, x, y, unit.id)) {
+          unit.x = x;
+          unit.y = y;
+          addLog(`${unit.id} starting position set to ${posName(x, y)}.`);
+        }
+
+        for (const el of board.querySelectorAll(".setup-unit")) el.classList.remove("dragging");
+        draggingSetupId = null;
+        render();
+      });
+
+      board.addEventListener("pointerleave", () => {
+        if (!draggingSetupId) return;
+        for (const el of board.querySelectorAll(".setup-unit")) el.classList.remove("dragging");
+        draggingSetupId = null;
+        render();
+      });
+    }
+
+    async function boot() {
+      syncConfigInputs();
+      setupDragHandlers();
+      render();
+
+      aiStatus = await ia.status();
+      aiReady = ["available", "readily", "after-download", "downloadable", "downloading"].includes(aiStatus);
+      if (aiStatus === "downloadable") addLog("Model is downloadable. Click Execute turn to start the download.");
+      if (aiStatus === "downloading") addLog("Model is downloading. Click Execute turn to continue.");
+      if (!aiReady) addLog("Chrome AI is unavailable. The game cannot be played in this environment.", "bad");
+      render();
+    }
+
+    $("turnBtn").addEventListener("click", runTurn);
+    $("resetBtn").addEventListener("click", reset);
+    $("gameTabBtn").addEventListener("click", () => switchTab("game"));
+    $("settingsTabBtn").addEventListener("click", () => switchTab("settings"));
+    $("helpTabBtn").addEventListener("click", () => switchTab("help"));
+    $("applySettingsBtn").addEventListener("click", applySettings);
+
+    boot();
+  </script>
+</body>
+</html>
