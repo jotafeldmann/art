@@ -3,7 +3,7 @@
 
 Preview: [https://htmlpreview.github.io/?https://github.com/jotafeldmann/art/blob/main/renato/renato.html](https://htmlpreview.github.io/?https://github.com/jotafeldmann/art/blob/main/renato/renato.html)
 
-1. Open the `index.html` first  
+1. Open the `renato.html` first  
 2. Run it directly in your local browser  
 3. Play until you reach the gift at the end
 
