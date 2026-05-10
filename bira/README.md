@@ -3,26 +3,6 @@
 
 Preview: https://htmlpreview.github.io/?https://github.com/jotafeldmann/art/blob/main/bira/index.html
 
-Repository: https://github.com/jotafeldmann/art/tree/main/bira
-
-1. Open the GitHub Pages preview in Chrome
-2. Make sure Chrome’s built-in AI API is enabled
-3. Give tactical orders using natural language
-4. Watch the AI translate your prompt into legal unit actions
-
-Local run:
-
-    npm install
-    npm run serve
-
-Then open:
-
-    http://localhost:3000/
-
-Or:
-
-    http://localhost:3000/index.html
-
 **Inspiration**  
 This project began as an experiment: what happens when a strategy game is not controlled mainly by clicking every unit, but by talking to an AI commander?
 
@@ -164,6 +144,47 @@ or:
     https://jotafeldmann.github.io/art/bira/
 
 Avoid iframe-based previews when testing Chrome AI integration, because the Prompt API may be restricted by browser Permission Policy rules in embedded contexts.
+
+## Dev
+1. Open the GitHub Pages preview in Chrome
+2. Make sure Chrome’s built-in AI API is enabled
+3. Give tactical orders using natural language
+4. Watch the AI translate your prompt into legal unit actions
+
+## First: Enabling Chrome built-in AI
+
+B.I.R.A. uses Chrome’s built-in Prompt API, which runs Gemini Nano locally in the browser. Chrome downloads the model separately the first time an origin uses the API. The official Chrome docs recommend enabling the built-in AI flags for localhost testing.  
+
+1. Open Chrome.
+
+2. Enable the on-device model flag:
+
+    chrome://flags/#optimization-guide-on-device-model
+
+3. Enable the Prompt API flag.
+
+    Try this first:
+
+    chrome://flags/#prompt-api-for-gemini-nano-multimodal-input
+
+    If that flag is not available in your Chrome version, try:
+
+    chrome://flags/#prompt-api-for-gemini-nano
+
+4. Relaunch Chrome.
+
+Local run:
+
+    npm install
+    npm run serve
+
+Then open:
+
+    http://localhost:3000/
+
+Or:
+
+    http://localhost:3000/index.html
 
 ## AI fair usage
 
