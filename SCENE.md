@@ -22,6 +22,7 @@
 - [Ars Electronica Festival](https://ars.electronica.art/festival/en/)
 - [SIGGRAPH Art Gallery](https://s2025.siggraph.org/program/art-gallery/)
 - [ICLC (International Conference on Live Coding)](https://iclc.toplap.org/)
+- [The International Obfuscated C Code Contest](https://www.ioccc.org/)
 
 ## Curated rabbit holes
 - [Awesome Creative Coding](https://github.com/terkelg/awesome-creative-coding)
