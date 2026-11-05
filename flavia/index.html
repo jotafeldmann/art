@@ -49,6 +49,7 @@
     padding: 0.55rem 2.2rem; cursor: pointer;
     box-shadow: 0 0 32px rgba(255,167,51,0.5);
   }
+  button:disabled { opacity: 0.6; cursor: default; }
   button:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
 
   #hint {
@@ -67,14 +68,16 @@
     <h1>Amber Light</h1>
     <p class="for">for Flavia</p>
     <blockquote>Ohne Musik wäre das Leben ein Irrtum.<span>Without music, life would be a mistake. — Nietzsche</span></blockquote>
-    <button id="begin">Begin</button>
+    <button id="begin" disabled>Loading</button>
   </div>
 </div>
 <div id="hint">Walk with the arrow keys or WASD, or tap a tile. Then be still and listen.</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-(() => {
+// three.js is loaded from here, not from a <script src> tag, so the piece also
+// runs inside htmlpreview.github.io, which drops external script tags.
+const THREE_URL = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+const run = () => {
   "use strict";
 
   // ---------- board ----------
@@ -585,6 +588,17 @@
   window.__flavia = { state, tryStep };
 
   frame();
+};
+
+(() => {
+  const btn = document.getElementById("begin");
+  const ready = () => { btn.disabled = false; btn.textContent = "Begin"; run(); };
+  if (window.THREE) return ready();
+  const s = document.createElement("script");
+  s.src = THREE_URL;
+  s.onload = ready;
+  s.onerror = () => { btn.textContent = "Could not load three.js. Check your connection and reload."; };
+  document.head.appendChild(s);
 })();
 </script>
 </body>
