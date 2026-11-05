@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Amber Light — for Flavia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;1,300;1,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --penumbra: #0c0a12;
+    --amber: #ffa733;
+    --amber-soft: #e8b878;
+    --ink: #d9cfc2;
+    --muted: #8a8094;
+  }
+  html, body {
+    margin: 0; height: 100%; background: var(--penumbra);
+    overflow: hidden; color: var(--ink);
+    font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  canvas { display: block; }
+
+  #veil {
+    position: fixed; inset: 0; display: grid; place-items: center;
+    background: radial-gradient(ellipse at 50% 55%, rgba(255,167,51,0.10), rgba(12,10,18,0.92) 60%);
+    transition: opacity 1.6s ease; z-index: 2;
+  }
+  #veil.gone { opacity: 0; pointer-events: none; }
+  .card { text-align: center; padding: 2rem; max-width: 34rem; }
+  h1 {
+    margin: 0; font-weight: 300; font-style: italic;
+    font-size: clamp(3rem, 11vw, 6.5rem); line-height: 0.95;
+    color: var(--amber);
+    text-shadow: 0 0 28px rgba(255,167,51,0.45), 0 0 80px rgba(255,140,30,0.25);
+  }
+  .for { margin: 0.6rem 0 2.2rem; font-size: 1.35rem; color: var(--amber-soft); }
+  blockquote {
+    margin: 0 auto 2.4rem; font-style: italic; font-size: 1.15rem;
+    line-height: 1.5; color: var(--muted);
+  }
+  blockquote span { display: block; font-style: normal; font-size: 0.95rem; margin-top: 0.3rem; }
+  button {
+    font: inherit; font-size: 1.25rem; font-style: italic; color: var(--penumbra);
+    background: var(--amber); border: 0; border-radius: 999px;
+    padding: 0.55rem 2.2rem; cursor: pointer;
+    box-shadow: 0 0 32px rgba(255,167,51,0.5);
+  }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+
+  #hint {
+    position: fixed; left: 0; right: 0;
+    bottom: calc(1.4rem + env(safe-area-inset-bottom, 0px));
+    text-align: center; font-style: italic; font-size: 1.1rem;
+    color: var(--muted); opacity: 0; transition: opacity 2s ease; pointer-events: none;
+  }
+  #hint.on { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="veil">
+  <div class="card">
+    <h1>Amber Light</h1>
+    <p class="for">for Flavia</p>
+    <blockquote>Ohne Musik wäre das Leben ein Irrtum.<span>Without music, life would be a mistake. — Nietzsche</span></blockquote>
+    <button id="begin">Begin</button>
+  </div>
+</div>
+<div id="hint">Walk with the arrow keys or WASD, or tap a tile. Then be still and listen.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+  "use strict";
+
+  // ---------- board ----------
+  const N = 9;                       // a limited board: 9 x 9
+  const STEP_TIME = 0.34;            // seconds per step = the tempo of her walk
+  const AMBER = new THREE.Color(0xff6200);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  document.body.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0c0a12);
+  scene.fog = new THREE.FogExp2(0x0c0a12, 0.075);
+
+  const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 100);
+
+  // the penumbra: just enough cold light to see the board
+  scene.add(new THREE.AmbientLight(0x2c2645, 0.32));
+  const moon = new THREE.DirectionalLight(0x6a6aa8, 0.2);
+  moon.position.set(-6, 10, -4);
+  scene.add(moon);
+
+  // the amber light that travels with her
+  const lantern = new THREE.PointLight(0xff9a30, 3.2, 5.5, 2);
+  scene.add(lantern);
+
+  const tiles = [];
+  const tileGeo = new THREE.BoxGeometry(0.93, 0.14, 0.93);
+  const half = (N - 1) / 2;
+  for (let z = 0; z < N; z++) {
+    for (let x = 0; x < N; x++) {
+      const shade = ((x + z) % 2 === 0) ? 0x2a2530 : 0x221e28;
+      const mat = new THREE.MeshStandardMaterial({
+        color: shade, roughness: 0.82, metalness: 0.06,
+        emissive: AMBER.clone(), emissiveIntensity: 0
+      });
+      const m = new THREE.Mesh(tileGeo, mat);
+      m.position.set(x - half, -0.07, z - half);
+      m.userData = { x, z, i: z * N + x };
+      scene.add(m);
+      tiles.push(m);
+    }
+  }
+  // a dark plinth under the board
+  const plinth = new THREE.Mesh(
+    new THREE.BoxGeometry(N + 0.5, 0.5, N + 0.5),
+    new THREE.MeshStandardMaterial({ color: 0x14111a, roughness: 1 })
+  );
+  plinth.position.y = -0.4;
+  scene.add(plinth);
+
+  // per-tile light memory
+  const trail = new Float32Array(N * N);   // fresh light left behind her
+  const visits = new Uint16Array(N * N);   // how often she has been here
+  const shown = new Float32Array(N * N);   // what the tile currently shows
+
+  // ---------- Flavia ----------
+  const SKIN = 0x8a5a3b, DRESS = 0x0e0c10, SHOE = 0x070607;
+  const skinMat = new THREE.MeshStandardMaterial({ color: SKIN, roughness: 0.55 });
+  const dressMat = new THREE.MeshStandardMaterial({ color: DRESS, roughness: 0.45, metalness: 0.1, side: THREE.DoubleSide });
+  const shoeMat = new THREE.MeshStandardMaterial({ color: SHOE, roughness: 0.25, metalness: 0.2 });
+
+  const flavia = new THREE.Group();
+  const body = new THREE.Group();          // bobs while walking
+  flavia.add(body);
+  scene.add(flavia);
+
+  function limb(radius, length, mat) {
+    const pivot = new THREE.Group();
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.85, length, 10), mat);
+    m.position.y = -length / 2;
+    pivot.add(m);
+    return pivot;
+  }
+
+  // legs + flats
+  const legs = [-1, 1].map(s => {
+    const leg = limb(0.042, 0.48, skinMat);
+    leg.position.set(0.065 * s, 0.53, 0);
+    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.045, 0.17), shoeMat);
+    shoe.position.set(0, -0.48, 0.03);
+    leg.add(shoe);
+    body.add(leg);
+    return leg;
+  });
+
+  // black dress: bodice + flared skirt
+  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.3, 0.42, 24, 1, true), dressMat);
+  skirt.position.y = 0.55;
+  body.add(skirt);
+  const bodice = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.125, 0.32, 18), dressMat);
+  bodice.position.y = 0.92;
+  body.add(bodice);
+
+  // arms
+  const arms = [-1, 1].map(s => {
+    const arm = limb(0.032, 0.42, skinMat);
+    arm.position.set(0.155 * s, 1.05, 0);
+    arm.rotation.z = 0.12 * s;
+    body.add(arm);
+    return arm;
+  });
+
+  // neck + head + eyes
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.1, 10), skinMat);
+  neck.position.y = 1.12;
+  body.add(neck);
+  const head = new THREE.Group();
+  head.position.y = 1.27;
+  body.add(head);
+  head.add(new THREE.Mesh(new THREE.SphereGeometry(0.125, 24, 18), skinMat));
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x1a0f0a, roughness: 0.3 });
+  [-1, 1].forEach(s => {
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), eyeMat);
+    e.position.set(0.042 * s, 0.015, 0.115);
+    head.add(e);
+  });
+
+  // red curls: many small spheres, instanced
+  const hairGroup = new THREE.Group();
+  head.add(hairGroup);
+  const curls = [];
+  const rand = mulberry32(19);
+  // crown and sides, leaving the face open
+  for (let k = 0; k < 220; k++) {
+    const theta = rand() * Math.PI * 2;
+    const phi = Math.acos(1 - rand() * 1.55);
+    const r = 0.128 + rand() * 0.022;
+    const p = new THREE.Vector3(
+      Math.sin(phi) * Math.sin(theta) * r,
+      Math.cos(phi) * r,
+      Math.sin(phi) * Math.cos(theta) * r
+    );
+    if (p.z > 0.04 && p.y < 0.09) continue;            // keep the face clear
+    curls.push({ p, s: 0.024 + rand() * 0.018 });
+  }
+  // the cascade behind and over the shoulders
+  for (let k = 0; k < 170; k++) {
+    const a = (rand() - 0.5) * Math.PI * 1.15 + Math.PI;  // mostly behind
+    const y = -0.02 - rand() * 0.3;
+    const r = 0.11 + rand() * 0.05 + (-y) * 0.16;
+    const p = new THREE.Vector3(Math.sin(a) * r, y, Math.cos(a) * r);
+    curls.push({ p, s: 0.024 + rand() * 0.02 });
+  }
+  const hairMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
+  const hair = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), hairMat, curls.length);
+  const tmp = new THREE.Object3D();
+  const reds = [0x8c1a0c, 0xa02412, 0x7a150a, 0xb3301a, 0x941e10];
+  curls.forEach((c, k) => {
+    tmp.position.copy(c.p);
+    tmp.scale.setScalar(c.s);
+    tmp.rotation.set(rand() * 3, rand() * 3, rand() * 3);
+    tmp.updateMatrix();
+    hair.setMatrixAt(k, tmp.matrix);
+    hair.setColorAt(k, new THREE.Color(reds[k % reds.length]));
+  });
+  hairGroup.add(hair);
+
+  // soft contact shadow
+  const blob = new THREE.Mesh(
+    new THREE.CircleGeometry(0.3, 24),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.45, depthWrite: false })
+  );
+  blob.rotation.x = -Math.PI / 2;
+  blob.position.y = 0.005;
+  flavia.add(blob);
+
+  // amber motes floating around her
+  const MOTES = 46;
+  const moteGeo = new THREE.BufferGeometry();
+  const motePos = new Float32Array(MOTES * 3);
+  const moteSeed = [];
+  for (let k = 0; k < MOTES; k++) moteSeed.push({ a: rand() * 6.28, r: 0.35 + rand() * 1.1, y: rand() * 2, v: 0.1 + rand() * 0.25 });
+  moteGeo.setAttribute("position", new THREE.BufferAttribute(motePos, 3));
+  const motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({
+    color: 0xffb347, size: 0.045, transparent: true, opacity: 0.75,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+  scene.add(motes);
+
+  // ---------- state ----------
+  const state = {
+    gx: 4, gz: 4,                 // grid position
+    fx: 0, fz: 1,                 // facing (toward the camera at first)
+    moving: false, t: 0,
+    from: new THREE.Vector3(), to: new THREE.Vector3(),
+    walkPhase: 0, stride: 0,
+    queue: [],                    // pending steps
+    target: null,                 // tapped tile
+    idle: 0, steps: 0,
+    history: [],                  // what she played, kept in amber
+    echoed: true,
+    echo: [],                     // scheduled echo notes
+    aheadStrength: 0,
+    started: false
+  };
+  const worldOf = (x, z) => new THREE.Vector3(x - half, 0, z - half);
+  flavia.position.copy(worldOf(state.gx, state.gz));
+  visits[state.gz * N + state.gx] = 1;
+
+  // ---------- music ----------
+  let ac = null, master, reverbIn, delayIn, droneFilter;
+  const PENTA = [0, 3, 5, 7, 10];            // A minor pentatonic: every note agrees
+  const BASE = 110;                           // A2
+
+  function noteFreq(idx) {
+    const oct = Math.floor(idx / 5), deg = idx % 5;
+    return BASE * Math.pow(2, oct + PENTA[deg] / 12);
+  }
+  // left/right and far/near both climb the scale
+  const tileNote = (x, z) => x + (N - 1 - z);
+
+  function initAudio() {
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    const comp = ac.createDynamicsCompressor();
+    comp.threshold.value = -18; comp.ratio.value = 3;
+    comp.connect(ac.destination);
+    master = ac.createGain(); master.gain.value = 0.9; master.connect(comp);
+
+    // reverb from generated noise
+    const conv = ac.createConvolver();
+    const len = ac.sampleRate * 3.4;
+    const ir = ac.createBuffer(2, len, ac.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6);
+    }
+    conv.buffer = ir;
+    reverbIn = ac.createGain(); reverbIn.gain.value = 0.5;
+    reverbIn.connect(conv); conv.connect(master);
+
+    // a warm feedback delay, timed to her steps
+    const delay = ac.createDelay(2); delay.delayTime.value = STEP_TIME * 1.5;
+    const fb = ac.createGain(); fb.gain.value = 0.33;
+    const dlp = ac.createBiquadFilter(); dlp.type = "lowpass"; dlp.frequency.value = 2200;
+    delayIn = ac.createGain(); delayIn.gain.value = 0.22;
+    delayIn.connect(delay); delay.connect(dlp); dlp.connect(fb); fb.connect(delay);
+    dlp.connect(master); dlp.connect(reverbIn);
+
+    // drone: A and E, breathing slowly; it brightens as more of the board glows
+    droneFilter = ac.createBiquadFilter(); droneFilter.type = "lowpass"; droneFilter.frequency.value = 320;
+    const droneGain = ac.createGain(); droneGain.gain.value = 0.0;
+    droneGain.gain.linearRampToValueAtTime(0.07, ac.currentTime + 4);
+    droneFilter.connect(droneGain); droneGain.connect(master); droneGain.connect(reverbIn);
+    [[55, "sawtooth", 0.35], [82.41, "triangle", 0.6], [110, "sine", 0.4], [164.81, "sine", 0.18]].forEach(([f, type, g]) => {
+      const o = ac.createOscillator(); o.type = type; o.frequency.value = f;
+      o.detune.value = (Math.random() - 0.5) * 8;
+      const og = ac.createGain(); og.gain.value = g;
+      const lfo = ac.createOscillator(); lfo.frequency.value = 0.05 + Math.random() * 0.08;
+      const lg = ac.createGain(); lg.gain.value = g * 0.4;
+      lfo.connect(lg); lg.connect(og.gain);
+      o.connect(og); og.connect(droneFilter);
+      o.start(); lfo.start();
+    });
+  }
+
+  // a step: soft plucked voice
+  function playStep(idx, accent) {
+    if (!ac) return;
+    const t = ac.currentTime + 0.01;
+    const f = noteFreq(idx);
+    const out = ac.createGain();
+    const lp = ac.createBiquadFilter(); lp.type = "lowpass";
+    lp.frequency.setValueAtTime(900 + f * 3, t);
+    lp.frequency.exponentialRampToValueAtTime(400 + f, t + 1.2);
+    const peak = (accent ? 0.2 : 0.15) * (f > 600 ? 0.75 : 1);
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(peak, t + 0.012);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + 1.9);
+    [[f, "triangle", 1], [f * 1.0023, "triangle", 0.5], [f * 2, "sine", 0.18]].forEach(([fr, type, g]) => {
+      const o = ac.createOscillator(); o.type = type; o.frequency.value = fr;
+      const og = ac.createGain(); og.gain.value = g;
+      o.connect(og); og.connect(lp); o.start(t); o.stop(t + 2);
+    });
+    lp.connect(out); out.connect(master); out.connect(reverbIn); out.connect(delayIn);
+    // every fourth step, a quiet low note under the melody
+    if (accent) {
+      const b = ac.createOscillator(); b.type = "sine"; b.frequency.value = noteFreq(idx % 5);
+      const bg = ac.createGain();
+      bg.gain.setValueAtTime(0.0001, t);
+      bg.gain.exponentialRampToValueAtTime(0.09, t + 0.03);
+      bg.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
+      b.connect(bg); bg.connect(master); bg.connect(reverbIn); b.start(t); b.stop(t + 1.5);
+    }
+  }
+
+  // the echo: music box, an octave up, as if heard through resin
+  function playBell(idx) {
+    if (!ac) return;
+    const t = ac.currentTime + 0.01;
+    const f = noteFreq(idx) * 2;
+    const out = ac.createGain();
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(0.055, t + 0.006);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+    [[f, 1], [f * 3.01, 0.12]].forEach(([fr, g]) => {
+      const o = ac.createOscillator(); o.type = "sine"; o.frequency.value = fr;
+      const og = ac.createGain(); og.gain.value = g;
+      o.connect(og); og.connect(out); o.start(t); o.stop(t + 1.7);
+    });
+    out.connect(master); out.connect(reverbIn);
+  }
+
+  // ---------- movement ----------
+  function tryStep(dx, dz) {
+    const nx = state.gx + dx, nz = state.gz + dz;
+    state.fx = dx; state.fz = dz;
+    if (nx < 0 || nz < 0 || nx >= N || nz >= N) return false;
+    const leaving = state.gz * N + state.gx;
+    trail[leaving] = 1;                      // the square behind her keeps the light
+    state.from.copy(worldOf(state.gx, state.gz));
+    state.gx = nx; state.gz = nz;
+    state.to.copy(worldOf(nx, nz));
+    state.moving = true; state.t = 0;
+    state.steps++;
+    const i = nz * N + nx;
+    visits[i] = Math.min(visits[i] + 1, 999);
+    const idx = tileNote(nx, nz);
+    playStep(idx, state.steps % 4 === 0);
+    state.history.push({ i, idx });
+    if (state.history.length > 16) state.history.shift();
+    state.idle = 0; state.echoed = false; state.echo.length = 0;
+    if (state.steps === 1) document.getElementById("hint").classList.remove("on");
+    return true;
+  }
+
+  function nextFromTarget() {
+    if (!state.target) return null;
+    const dx = state.target.x - state.gx, dz = state.target.z - state.gz;
+    if (dx === 0 && dz === 0) { state.target = null; return null; }
+    // walk the longer axis first, so paths look like intention
+    if (Math.abs(dx) >= Math.abs(dz)) return [Math.sign(dx), 0];
+    return [0, Math.sign(dz)];
+  }
+
+  const KEYS = {
+    ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1],
+    ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0]
+  };
+  const held = new Set();
+  window.addEventListener("keydown", e => {
+    const d = KEYS[e.code];
+    if (!d || !state.started) return;
+    e.preventDefault();
+    state.target = null;
+    held.add(e.code);
+    if (!state.moving) tryStep(d[0], d[1]);
+    else if (state.queue.length < 1) state.queue.push(d);
+  });
+  window.addEventListener("keyup", e => held.delete(e.code));
+
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  renderer.domElement.addEventListener("pointerdown", e => {
+    if (!state.started) return;
+    ndc.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const hit = ray.intersectObjects(tiles)[0];
+    if (!hit) return;
+    state.queue.length = 0;
+    state.target = { x: hit.object.userData.x, z: hit.object.userData.z };
+    if (!state.moving) { const s = nextFromTarget(); if (s) tryStep(s[0], s[1]); }
+  });
+
+  // ---------- begin ----------
+  document.getElementById("begin").addEventListener("click", () => {
+    initAudio();
+    state.started = true;
+    document.getElementById("veil").classList.add("gone");
+    setTimeout(() => document.getElementById("hint").classList.add("on"), 1400);
+    setTimeout(() => document.getElementById("hint").classList.remove("on"), 12000);
+  });
+
+  // ---------- loop ----------
+  const camFocus = new THREE.Vector3(0, 0.5, 0);
+  const clock = new THREE.Clock();
+  const ahead = new Float32Array(N * N);
+  const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+  function frame() {
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const time = clock.elapsedTime;
+
+    // walking
+    if (state.moving) {
+      state.t += dt / STEP_TIME;
+      const k = Math.min(state.t, 1);
+      flavia.position.lerpVectors(state.from, state.to, ease(k));
+      state.walkPhase += dt / STEP_TIME * Math.PI;
+      state.stride = Math.min(1, state.stride + dt * 8);
+      if (state.t >= 1) {
+        state.moving = false;
+        flavia.position.copy(state.to);
+        let next = state.queue.shift();
+        if (!next) {
+          for (const code of held) { next = KEYS[code]; }
+        }
+        if (!next) next = nextFromTarget();
+        if (next) tryStep(next[0], next[1]);
+      }
+    } else {
+      state.stride = Math.max(0, state.stride - dt * 5);
+      state.idle += dt;
+    }
+
+    // face where she goes
+    const want = Math.atan2(state.fx, state.fz);
+    let diff = want - flavia.rotation.y;
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    flavia.rotation.y += diff * Math.min(1, dt * 14);
+
+    // body animation
+    const sw = Math.sin(state.walkPhase) * state.stride;
+    legs[0].rotation.x = sw * 0.55; legs[1].rotation.x = -sw * 0.55;
+    arms[0].rotation.x = -sw * 0.45; arms[1].rotation.x = sw * 0.45;
+    const breathe = Math.sin(time * 1.6) * 0.008;
+    body.position.y = Math.abs(Math.sin(state.walkPhase)) * 0.05 * state.stride + breathe;
+    skirt.rotation.y = sw * 0.12;
+    skirt.scale.set(1 + Math.abs(sw) * 0.05, 1, 1 + Math.abs(sw) * 0.05);
+    hairGroup.rotation.x = -Math.abs(sw) * 0.06 + Math.sin(time * 1.3) * 0.015;
+    hairGroup.rotation.z = Math.sin(state.walkPhase) * 0.04 * state.stride;
+    head.rotation.y = Math.sin(time * 0.5) * 0.12 * (1 - state.stride);
+
+    // the lantern
+    const flick = 1 + Math.sin(time * 7.3) * 0.03 + Math.sin(time * 13.1) * 0.02;
+    lantern.position.set(flavia.position.x + state.fx * 0.25, 1.9, flavia.position.z + state.fz * 0.25);
+    lantern.intensity = 3.2 * flick;
+
+    // the path ahead lights up while she moves
+    const moving = state.moving || state.stride > 0.05;
+    state.aheadStrength += ((moving ? 1 : 0.25) - state.aheadStrength) * Math.min(1, dt * (moving ? 6 : 1.2));
+    ahead.fill(0);
+    for (let s = 1; s <= 3; s++) {
+      const ax = state.gx + state.fx * s, az = state.gz + state.fz * s;
+      if (ax < 0 || az < 0 || ax >= N || az >= N) break;
+      ahead[az * N + ax] = [0, 0.55, 0.3, 0.14][s] * state.aheadStrength;
+    }
+
+    // the echo: when she rests, the board remembers
+    if (state.idle > 4 && !state.echoed && state.history.length >= 3) {
+      state.echoed = true;
+      state.history.forEach((h, n) => state.echo.push({ at: time + n * STEP_TIME * 1.15, ...h }));
+    }
+    while (state.echo.length && state.echo[0].at <= time) {
+      const h = state.echo.shift();
+      playBell(h.idx);
+      trail[h.i] = Math.max(trail[h.i], 0.85);
+    }
+
+    // tile light
+    let lit = 0;
+    const here = state.gz * N + state.gx;
+    for (let i = 0; i < N * N; i++) {
+      // the more she returns to a square, the longer it holds the light
+      const tau = Math.min(2.8 + visits[i] * 1.8, 40);
+      trail[i] *= Math.exp(-dt / tau);
+      const memory = Math.min(visits[i] * 0.014, 0.2);
+      let target = Math.max(trail[i] * 0.95, memory, ahead[i]);
+      if (i === here) target = Math.max(target, 0.6);
+      shown[i] += (target - shown[i]) * Math.min(1, dt * 7);
+      tiles[i].material.emissiveIntensity = shown[i] * 0.85;
+      lit += shown[i];
+    }
+    if (droneFilter) droneFilter.frequency.setTargetAtTime(280 + lit * 26, ac.currentTime, 0.8);
+
+    // motes drift upward around her
+    for (let k = 0; k < MOTES; k++) {
+      const m = moteSeed[k];
+      m.y += m.v * dt; m.a += dt * 0.15;
+      if (m.y > 2.4) { m.y = 0.1; m.r = 0.35 + Math.random() * 1.1; }
+      motePos[k * 3] = flavia.position.x + Math.cos(m.a) * m.r;
+      motePos[k * 3 + 1] = m.y;
+      motePos[k * 3 + 2] = flavia.position.z + Math.sin(m.a) * m.r;
+    }
+    moteGeo.attributes.position.needsUpdate = true;
+
+    // camera: follows her gently but keeps the board in view
+    camFocus.lerp(new THREE.Vector3(flavia.position.x * 0.8, 0.5, flavia.position.z * 0.8), Math.min(1, dt * 2.5));
+    const aspect = window.innerWidth / window.innerHeight;
+    const dist = aspect < 0.8 ? 1.45 : 1;
+    camera.position.set(camFocus.x, camFocus.y + 4.6 * dist, camFocus.z + 6.4 * dist);
+    camera.lookAt(camFocus);
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+
+  window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  // test hook for screenshots; harmless in normal use
+  window.__flavia = { state, tryStep };
+
+  frame();
+})();
+</script>
+</body>
+</html>
